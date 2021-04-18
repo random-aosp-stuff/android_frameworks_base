@@ -41,7 +41,7 @@ import android.service.vr.IVrManager;
 import android.service.vr.IVrStateCallbacks;
 import android.util.Log;
 import android.util.MathUtils;
-import android.widget.ImageView;
+import android.widget.ImageButton;
 
 import com.android.internal.display.BrightnessSynchronizer;
 import com.android.internal.logging.MetricsLogger;
@@ -72,7 +72,7 @@ public class BrightnessController implements ToggleSlider.Listener, MirroredBrig
     private final float mMinimumBacklightForVr;
     private final float mMaximumBacklightForVr;
 
-    private final ImageView mIcon;
+    private final ImageButton mIcon;
     private final int mDisplayId;
     private final Context mContext;
     private final ToggleSlider mControl;

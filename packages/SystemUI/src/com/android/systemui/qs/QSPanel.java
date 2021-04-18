@@ -33,6 +33,7 @@ import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageButton;
 import android.widget.LinearLayout;
 
 import androidx.annotation.VisibleForTesting;
@@ -76,7 +77,7 @@ public class QSPanel extends LinearLayout implements Tunable {
 
     @Nullable
     protected View mBrightnessView;
-    protected View mAutoBrightnessView;
+    protected ImageButton mAutoBrightnessView;
 
     @Nullable
     protected BrightnessSliderController mToggleSliderController;
