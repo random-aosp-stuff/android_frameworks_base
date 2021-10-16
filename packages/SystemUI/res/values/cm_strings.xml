@@ -135,4 +135,10 @@
 
     <!-- Notify use that they are in Lock-to-app (for devices without navbar)-->
     <string name="screen_pinning_toast_no_navbar">To unpin this screen, touch &amp; hold Back button</string>
+
+    <!-- Sound QS Tile -->
+    <string name="quick_settings_sound_label">Sound</string>
+    <string name="quick_settings_sound_ring">Ring</string>
+    <string name="quick_settings_sound_vibrate">Vibrate</string>
+    <string name="quick_settings_sound_mute">Mute</string>
 </resources>
