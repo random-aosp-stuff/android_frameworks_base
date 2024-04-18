@@ -522,5 +522,20 @@ public class SecureSettingsValidators {
                 new InclusiveIntegerRangeValidator(0, 1));
         VALIDATORS.put(Secure.IDENTITY_CHECK_NOTIFICATION_VIEW_DETAILS_CLICKED,
                 new InclusiveIntegerRangeValidator(0, 1));
+        VALIDATORS.put(Secure.CAMERA_OFF_TIMEOUT,
+                new DiscreteValueValidator(new String[] {
+                        "0",
+                        "15000",
+                        "30000",
+                        "60000",
+                        "120000",
+                        "300000",
+                        "600000",
+                        "1800000",
+                        "3600000",
+                        "7200000",
+                        "14400000",
+                        "28800000"
+                }));
     }
 }
