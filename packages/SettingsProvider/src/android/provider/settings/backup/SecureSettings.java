@@ -290,5 +290,6 @@ public class SecureSettings {
         Settings.Secure.STRICT_LOCATION_REDACTION,
         Settings.Secure.ADVANCED_PROTECTION_MODE,
         Settings.Secure.ACCESSIBILITY_KEY_GESTURE_TARGETS,
+        Settings.Secure.CAMERA_OFF_TIMEOUT
     };
 }
