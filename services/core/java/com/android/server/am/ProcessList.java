@@ -2143,6 +2143,7 @@ public final class ProcessList {
             int uid, int[] gids, int runtimeFlags, int zygotePolicyFlags, int mountExternal,
             String seInfo, String requiredAbi, String instructionSet, String invokeWith,
             long startUptime, long startElapsedTime) {
+        app.setShouldRestartOnce(false);
         app.setPendingStart(true);
         app.setRemoved(false);
         synchronized (mProcLock) {
@@ -3072,7 +3073,7 @@ public final class ProcessList {
             final int NA = apps.size();
             for (int ia = 0; ia < NA; ia++) {
                 ProcessRecord app = apps.valueAt(ia);
-                if (app.isPersistent() && !evenPersistent) {
+                if ((app.isPersistent() || app.getShouldRestartOnce()) && !evenPersistent) {
                     // we don't kill persistent processes
                     continue;
                 }
@@ -3256,7 +3257,7 @@ public final class ProcessList {
         // need to clean up whatever may be there now.
         synchronized (mProcLock) {
             ProcessRecord old = removeProcessNameLocked(proc.processName, proc.uid);
-            if (old == proc && proc.isPersistent()) {
+            if (old == proc && (proc.isPersistent() || proc.getShouldRestartOnce())) {
                 // We are re-adding a persistent process.  Whatevs!  Just leave it there.
                 Slog.w(TAG, "Re-adding persistent process " + proc);
                 // Ensure that the mCrashing flag is cleared, since this is a restart
@@ -3950,7 +3951,7 @@ public final class ProcessList {
 
         int lrui = mLruProcesses.lastIndexOf(app);
 
-        if (app.isPersistent() && lrui >= 0) {
+        if ((app.isPersistent() || app.getShouldRestartOnce()) && lrui >= 0) {
             // We don't care about the position of persistent processes, as long as
             // they are in the list.
             if (DEBUG_LRU) Slog.d(TAG_LRU, "Not moving, persistent: " + app);

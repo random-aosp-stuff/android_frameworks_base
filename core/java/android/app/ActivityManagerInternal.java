@@ -1371,8 +1371,16 @@ public abstract class ActivityManagerInternal {
      */
     public abstract void addCreatorToken(Intent intent, String creatorPackage);
 
+    @Nullable
+    public abstract void killAndMaybeRestartProcessUsedInBackup(String processName, int uid);
+
     public static boolean enableBackupAgentInSeparateProcess() {
         return SystemProperties.getBoolean("persist.testing.backup_agent_in_separate_process",
+                false);
+    }
+
+    public static boolean enableRestartProcessesAfterBackup() {
+        return SystemProperties.getBoolean("persist.testing.restart_processes_after_backup",
                 false);
     }
 }
