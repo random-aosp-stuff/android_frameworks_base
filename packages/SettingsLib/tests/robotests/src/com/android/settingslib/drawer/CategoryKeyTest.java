@@ -61,9 +61,8 @@ public class CategoryKeyTest {
         allKeys.add(CategoryKey.CATEGORY_NIGHT_DISPLAY);
         allKeys.add(CategoryKey.CATEGORY_SMART_BATTERY_SETTINGS);
         allKeys.add(CategoryKey.CATEGORY_COMMUNAL_SETTINGS);
-        allKeys.add(CategoryKey.CATEGORY_OTHER);
         // DO NOT REMOVE ANYTHING ABOVE
 
-        assertThat(allKeys.size()).isEqualTo(21);
+        assertThat(allKeys.size()).isEqualTo(20);
     }
 }
