@@ -1381,6 +1381,6 @@ public abstract class ActivityManagerInternal {
 
     public static boolean enableRestartProcessesAfterBackup() {
         return SystemProperties.getBoolean("persist.testing.restart_processes_after_backup",
-                false);
+                true);
     }
 }
