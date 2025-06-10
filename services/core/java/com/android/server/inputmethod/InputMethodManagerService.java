@@ -3057,7 +3057,7 @@ public final class InputMethodManagerService implements IInputMethodManagerImpl.
         if (!mLineageHardware.isSupported(LineageHardwareManager.FEATURE_HIGH_TOUCH_SENSITIVITY)) {
             return;
         }
-        // If user is a profile, use preference of it`s parent profile.
+        // If user is a profile, use preference of its parent profile.
         final int profileParentUserId = mUserManagerInternal.getProfileParentId(mCurrentImeUserId);
         final boolean enabled = LineageSettings.System.getIntForUser(mContext.getContentResolver(),
                 LineageSettings.System.HIGH_TOUCH_SENSITIVITY_ENABLE, 0, profileParentUserId) == 1;
