@@ -144,11 +144,18 @@ public class AudioDeviceBroker {
     /** ID for Accessibility strategy retrieved form audio policy manager */
     private int mAccessibilityStrategyId = -1;
 
+    /** ID for Sonification strategy retrieved from audio policy manager */
+    private int mSonificationStrategyId = -1;
+
 
     /** Active communication device reported by audio policy manager */
     /*package*/ AudioDeviceInfo mActiveCommunicationDevice;
     /** Last preferred device set for communication strategy */
     private AudioDeviceAttributes mPreferredCommunicationDevice;
+
+    private static final AudioDeviceAttributes RING_ALARM_SAFETY_DEVICE =
+            new AudioDeviceAttributes(AudioDeviceAttributes.ROLE_OUTPUT,
+                    AudioDeviceInfo.TYPE_BUILTIN_SPEAKER, "");
 
     // Manages all connected devices, only ever accessed on the message loop
     private final AudioDeviceInventory mDeviceInventory;
@@ -298,6 +305,7 @@ public class AudioDeviceBroker {
                 mAudioSystem.getAudioProductStrategies(/* filterInternal= */ true);
         mCommunicationStrategyId = -1;
         mAccessibilityStrategyId = -1;
+        mSonificationStrategyId = -1;
         for (AudioProductStrategy strategy : strategies) {
             if (mCommunicationStrategyId == -1
                     && strategy.getAudioAttributesForLegacyStreamType(
@@ -308,6 +316,13 @@ public class AudioDeviceBroker {
                     && strategy.getAudioAttributesForLegacyStreamType(
                             AudioSystem.STREAM_ACCESSIBILITY) != null) {
                 mAccessibilityStrategyId = strategy.getId();
+            }
+            if (mSonificationStrategyId == -1
+                    && (strategy.getAudioAttributesForLegacyStreamType(
+                            AudioSystem.STREAM_RING) != null
+                    || strategy.getAudioAttributesForLegacyStreamType(
+                            AudioSystem.STREAM_ALARM) != null)) {
+                mSonificationStrategyId = strategy.getId();
             }
         }
     }
@@ -1415,7 +1430,10 @@ public class AudioDeviceBroker {
 
     /*package*/ int setPreferredDevicesForStrategySync(int strategy,
             @NonNull List<AudioDeviceAttributes> devices) {
-        return mDeviceInventory.setPreferredDevicesForStrategyAndSave(strategy, devices);
+        final int status = mDeviceInventory.setPreferredDevicesForStrategyAndSave(
+                strategy, devices);
+        postUpdateRingAlarmPersonalAudioSafetyRouting("setPreferredDevicesForStrategySync");
+        return status;
     }
 
     /*package*/ List<AudioDeviceAttributes> getPreferredDevicesForStrategy(int strategy) {
@@ -1423,7 +1441,9 @@ public class AudioDeviceBroker {
     }
 
     /*package*/ int removePreferredDevicesForStrategySync(int strategy) {
-        return mDeviceInventory.removePreferredDevicesForStrategyAndSave(strategy);
+        final int status = mDeviceInventory.removePreferredDevicesForStrategyAndSave(strategy);
+        postUpdateRingAlarmPersonalAudioSafetyRouting("removePreferredDevicesForStrategySync");
+        return status;
     }
 
     /*package*/ int setDeviceAsNonDefaultForStrategySync(int strategy,
@@ -1681,6 +1701,11 @@ public class AudioDeviceBroker {
     /*package*/ void postUpdatedAdiDeviceState(AdiDeviceState deviceState, boolean initSA) {
         sendILMsgNoDelay(
                 MSG_IL_UPDATED_ADI_DEVICE_STATE, SENDMSG_QUEUE, initSA ? 1 : 0, deviceState);
+    }
+
+    /*package*/ void postUpdateRingAlarmPersonalAudioSafetyRouting(@NonNull String eventSource) {
+        sendLMsgNoDelay(MSG_L_UPDATE_RING_ALARM_PERSONAL_AUDIO_SAFETY_ROUTING,
+                SENDMSG_REPLACE, eventSource);
     }
 
     /*package*/ static final class CommunicationDeviceInfo {
@@ -1989,6 +2014,7 @@ public class AudioDeviceBroker {
                                         AudioSystem.FOR_MEDIA, forceForMedia,
                                         "MSG_RESTORE_DEVICES");
                                 updateCommunicationRoute("MSG_RESTORE_DEVICES");
+                                updateRingAlarmPersonalAudioSafetyRouting("MSG_RESTORE_DEVICES");
                             } else {
                                 // device restoration failed and needs to be attempted again later
                                 sendMsg(MSG_RESTORE_DEVICES, SENDMSG_REPLACE,
@@ -2001,6 +2027,8 @@ public class AudioDeviceBroker {
                     synchronized (mDeviceStateLock) {
                         mDeviceInventory.onSetWiredDeviceConnectionState(
                                 (AudioDeviceInventory.WiredDeviceConnectionState) msg.obj);
+                        updateRingAlarmPersonalAudioSafetyRouting(
+                                "MSG_L_SET_WIRED_DEVICE_CONNECTION_STATE");
                     }
                     break;
                 case MSG_I_BROADCAST_BT_CONNECTION_STATE:
@@ -2055,6 +2083,8 @@ public class AudioDeviceBroker {
                                             "setBluetoothActiveDevice");
                                     }
                                 }
+                                updateRingAlarmPersonalAudioSafetyRouting(
+                                        "MSG_L_SET_BT_ACTIVE_DEVICE");
                             }
                         }
                     }
@@ -2071,6 +2101,7 @@ public class AudioDeviceBroker {
                     synchronized (mDeviceStateLock) {
                         mDeviceInventory.onMakeA2dpDeviceUnavailableNow(
                                 (String) msg.obj, msg.arg1);
+                        updateRingAlarmPersonalAudioSafetyRouting("MSG_IL_BTA2DP_TIMEOUT");
                     }
                     break;
                 case MSG_IIL_BTLEAUDIO_TIMEOUT:
@@ -2078,6 +2109,7 @@ public class AudioDeviceBroker {
                     synchronized (mDeviceStateLock) {
                         mDeviceInventory.onMakeLeAudioDeviceUnavailableNow(
                                 (String) msg.obj, msg.arg1, msg.arg2);
+                        updateRingAlarmPersonalAudioSafetyRouting("MSG_IIL_BTLEAUDIO_TIMEOUT");
                     }
                     break;
                 case MSG_IL_BT_HEARING_AID_TIMEOUT:
@@ -2085,6 +2117,7 @@ public class AudioDeviceBroker {
                     synchronized (mDeviceStateLock) {
                         mDeviceInventory.onMakeHearingAidDeviceUnavailableNow(
                                 (String) msg.obj);
+                        updateRingAlarmPersonalAudioSafetyRouting("MSG_IL_BT_HEARING_AID_TIMEOUT");
                     }
                     break;
                 case MSG_L_BLUETOOTH_DEVICE_CONFIG_CHANGE: {
@@ -2103,6 +2136,8 @@ public class AudioDeviceBroker {
                         muteCheckDelayMs += mDeviceInventory.onBluetoothDeviceConfigChange(btInfo,
                                 codecAndChanged.first, codecAndChanged.second,
                                 BtHelper.EVENT_DEVICE_CONFIG_CHANGE);
+                        updateRingAlarmPersonalAudioSafetyRouting(
+                                "MSG_L_BLUETOOTH_DEVICE_CONFIG_CHANGE");
                     }
                 } break;
                 case MSG_BROADCAST_AUDIO_BECOMING_NOISY:
@@ -2167,6 +2202,12 @@ public class AudioDeviceBroker {
                             onUpdateCommunicationRouteClient(
                                     info.attributionSource, info.eventSource);
                         }
+                    }
+                    break;
+
+                case MSG_L_UPDATE_RING_ALARM_PERSONAL_AUDIO_SAFETY_ROUTING:
+                    synchronized (mDeviceStateLock) {
+                        updateRingAlarmPersonalAudioSafetyRouting((String) msg.obj);
                     }
                     break;
 
@@ -2347,6 +2388,7 @@ public class AudioDeviceBroker {
     private static final int MSG_IL_BT_HEARING_AID_TIMEOUT = 61;
 
     private static final int MSG_I_MUTE_CALL = 62;
+    private static final int MSG_L_UPDATE_RING_ALARM_PERSONAL_AUDIO_SAFETY_ROUTING = 63;
 
 
     private static boolean isMessageHandledUnderWakelock(int msgId) {
@@ -2734,6 +2776,40 @@ public class AudioDeviceBroker {
             sendIMsg(MSG_I_MUTE_CALL, SENDMSG_REPLACE,
                     0 /*unmute*/, 0 /*delay */);
         }
+    }
+
+    @GuardedBy("mDeviceStateLock")
+    private void updateRingAlarmPersonalAudioSafetyRouting(@NonNull String eventSource) {
+        if (mSonificationStrategyId == -1) {
+            initRoutingStrategyIds();
+            AudioService.sDeviceLogger.enqueue((new EventLogger.StringEvent(
+                    "updateRingAlarmPersonalAudioSafetyRouting: strategy IDs reinit "
+                            + ((mSonificationStrategyId == -1) ? "failure" : "success")))
+                    .printLog(ALOGW, TAG));
+        }
+        if (mSonificationStrategyId == -1) {
+            return;
+        }
+
+        final boolean hasExternalPreferredDevices =
+                mDeviceInventory.hasExternalPreferredDevicesForStrategy(mSonificationStrategyId);
+        final boolean shouldRouteToSpeaker = !hasExternalPreferredDevices
+                && mAudioService.isRingAlarmPersonalAudioSafetyEnabled()
+                && mDeviceInventory.hasRingAlarmPersonalAudioSafetyDevice();
+        AudioService.sDeviceLogger.enqueue((new EventLogger.StringEvent(
+                "updateRingAlarmPersonalAudioSafetyRouting routeToSpeaker="
+                        + shouldRouteToSpeaker + " externalPreferred="
+                        + hasExternalPreferredDevices + " eventSource=" + eventSource)));
+
+        if (shouldRouteToSpeaker) {
+            mDeviceInventory.setPreferredDevicesForStrategyInt(mSonificationStrategyId,
+                    Arrays.asList(RING_ALARM_SAFETY_DEVICE));
+            return;
+        }
+
+        mDeviceInventory.removePreferredDevicesForStrategyInt(mSonificationStrategyId);
+        mDeviceInventory.applyConnectedDevicesRoles();
+        mDeviceInventory.reapplyExternalDevicesRoles();
     }
 
     // Pairs of input and output devices for duplex communication devices (headsets)

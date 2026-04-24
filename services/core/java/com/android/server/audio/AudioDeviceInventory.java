@@ -584,6 +584,49 @@ public class AudioDeviceInventory {
         return mAlwaysRingDeviceConnected.get();
     }
 
+    boolean hasRingAlarmPersonalAudioSafetyDevice() {
+        synchronized (mDevicesLock) {
+            for (DeviceInfo devInfo : mConnectedDevices.values()) {
+                switch (devInfo.mDeviceType) {
+                    case AudioSystem.DEVICE_OUT_WIRED_HEADSET:
+                    case AudioSystem.DEVICE_OUT_WIRED_HEADPHONE:
+                    case AudioSystem.DEVICE_OUT_USB_HEADSET:
+                    case AudioSystem.DEVICE_OUT_BLUETOOTH_A2DP_HEADPHONES:
+                        return true;
+                    case AudioSystem.DEVICE_OUT_BLE_HEADSET: {
+                        final AdiDeviceState ads = findBtDeviceStateForAddress(
+                                devInfo.mDeviceAddress, devInfo.mDeviceType);
+                        if (ads != null && ads.getAudioDeviceCategory()
+                                == AudioManager.AUDIO_DEVICE_CATEGORY_HEADPHONES) {
+                            return true;
+                        }
+                        break;
+                    }
+                    case AudioSystem.DEVICE_OUT_BLUETOOTH_A2DP: {
+                        final AdiDeviceState ads = findBtDeviceStateForAddress(
+                                devInfo.mDeviceAddress, devInfo.mDeviceType);
+                        if (ads != null
+                                && ads.getAudioDeviceCategory()
+                                == AudioManager.AUDIO_DEVICE_CATEGORY_HEADPHONES) {
+                            return true;
+                        }
+                        break;
+                    }
+                    default:
+                        break;
+                }
+            }
+        }
+        return false;
+    }
+
+    boolean hasExternalPreferredDevicesForStrategy(int strategy) {
+        synchronized (mDevicesLock) {
+            final List<AudioDeviceAttributes> devices = mPreferredDevices.get(strategy);
+            return devices != null && !devices.isEmpty();
+        }
+    }
+
     /**
      * Holds the list of native device types that are candidates for "always ring"
      */

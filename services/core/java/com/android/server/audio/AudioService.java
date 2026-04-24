@@ -284,6 +284,8 @@ import com.android.server.pm.pkg.PackageState;
 import com.android.server.utils.EventLogger;
 import com.android.server.wm.ActivityTaskManagerInternal;
 
+import lineageos.providers.LineageSettings;
+
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
 import java.lang.annotation.Retention;
@@ -644,7 +646,12 @@ public class AudioService extends IAudioService.Stub
         return streamState != null ? streamState.getMaxIndex() : -1;
     }
 
+    /*package*/ boolean isRingAlarmPersonalAudioSafetyEnabled() {
+        return mRingAlarmPersonalAudioSafetyEnabled;
+    }
+
     private SettingsObserver mSettingsObserver;
+    private volatile boolean mRingAlarmPersonalAudioSafetyEnabled;
 
     private AtomicInteger mMode = new AtomicInteger(AudioSystem.MODE_NORMAL);
 
@@ -7613,6 +7620,14 @@ public class AudioService extends IAudioService.Stub
             Log.d(TAG, "Restoring device volume behavior");
         }
         restoreDeviceVolumeBehavior();
+        updateRingAlarmPersonalAudioSafetyEnabled();
+        mDeviceBroker.postUpdateRingAlarmPersonalAudioSafetyRouting("readAudioSettings");
+    }
+
+    private void updateRingAlarmPersonalAudioSafetyEnabled() {
+        mRingAlarmPersonalAudioSafetyEnabled = LineageSettings.System.getIntForUser(
+                mContentResolver, LineageSettings.System.RING_ALARM_PERSONAL_AUDIO_SAFETY,
+                0, UserHandle.USER_CURRENT) == 1;
     }
 
     /** @see AudioManager#getAvailableCommunicationDevices(int) */
@@ -11366,6 +11381,9 @@ public class AudioService extends IAudioService.Stub
 
             mContentResolver.registerContentObserver(Settings.Secure.getUriFor(
                     Settings.Secure.VOICE_INTERACTION_SERVICE), false, this);
+            mContentResolver.registerContentObserver(LineageSettings.System.getUriFor(
+                    LineageSettings.System.RING_ALARM_PERSONAL_AUDIO_SAFETY),
+                    false, this, UserHandle.USER_ALL);
         }
 
         @Override
@@ -11396,6 +11414,8 @@ public class AudioService extends IAudioService.Stub
             synchronized (mAssistantUidLock) {
                 updateAssistantUIdLocked(/* forceUpdate= */ false);
             }
+            updateRingAlarmPersonalAudioSafetyEnabled();
+            mDeviceBroker.postUpdateRingAlarmPersonalAudioSafetyRouting("SettingsObserver");
         }
 
         @GuardedBy("mSurroundLock")
@@ -13111,6 +13131,7 @@ public class AudioService extends IAudioService.Stub
         mSoundDoseHelper.setAudioDeviceCategory(deviceState.getDeviceAddress(),
                 deviceState.getInternalDeviceType(),
                 deviceState.getAudioDeviceCategory() == AUDIO_DEVICE_CATEGORY_HEADPHONES);
+        mDeviceBroker.postUpdateRingAlarmPersonalAudioSafetyRouting("onUpdatedAdiDeviceState");
     }
 
     //==========================================================================================
