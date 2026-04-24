@@ -8563,7 +8563,8 @@ public class AudioService extends IAudioService.Stub
     @VisibleForTesting
     public int getDeviceForStream(int stream, boolean selectAbsoluteDevices) {
         stream = replaceBtScoStreamWithVoiceCall(stream, "getDeviceForStream");
-        return selectOneAudioDevice(getDeviceSetForStream(stream), selectAbsoluteDevices);
+        return selectOneAudioDeviceForStream(stream, getDeviceSetForStream(stream),
+                selectAbsoluteDevices);
     }
 
     private AudioDeviceAttributes getDeviceAttributesForStream(int stream) {
@@ -8584,18 +8585,58 @@ public class AudioService extends IAudioService.Stub
     public AudioDeviceAttributes getDeviceAttributesForStream(int stream,
             boolean selectAbsoluteDevices) {
         stream = replaceBtScoStreamWithVoiceCall(stream, "getDeviceForStream");
-        return selectOneAudioDeviceAttribute(getDeviceSetForStream(stream), selectAbsoluteDevices);
+        return selectOneAudioDeviceAttributeForStream(stream, getDeviceSetForStream(stream),
+                selectAbsoluteDevices);
     }
 
+    private int selectOneAudioDeviceForStream(int stream, Set<AudioDeviceAttributes> deviceSet,
+            boolean selectAbsoluteDevices) {
+        return selectOneAudioDeviceAttributeForStream(stream, deviceSet, selectAbsoluteDevices)
+                .getInternalType();
+    }
 
     /*
-     * Must match native apm_extract_one_audio_device() used in getDeviceForVolume()
-     * or the wrong device volume may be adjusted.
+     * Stream-aware volume-device selection. For ring and alarm only, prefer the single removable
+     * volume device type when the active device set is speaker + removable. Keep this aligned with
+     * the context-aware native selection in AudioPolicyManager.
      */
-    private int selectOneAudioDevice(Set<AudioDeviceAttributes> deviceSet,
-            boolean selectAbsoluteDevices) {
-        return selectOneAudioDeviceAttribute(deviceSet, selectAbsoluteDevices).getInternalType();
+    @VisibleForTesting(visibility = PACKAGE)
+    @NonNull
+    AudioDeviceAttributes selectOneAudioDeviceAttributeForStream(int stream,
+            Set<AudioDeviceAttributes> deviceSet, boolean selectAbsoluteDevices) {
+        if (stream == AudioSystem.STREAM_RING || stream == AudioSystem.STREAM_ALARM) {
+            final AudioDeviceAttributes ringAlarmDevice =
+                    getRingAlarmVolumeDeviceAttribute(deviceSet);
+            if (ringAlarmDevice != null) {
+                return ringAlarmDevice;
+            }
+        }
+        return selectOneAudioDeviceAttribute(deviceSet, selectAbsoluteDevices);
     }
+
+    @Nullable
+    private static AudioDeviceAttributes getRingAlarmVolumeDeviceAttribute(
+            Set<AudioDeviceAttributes> deviceSet) {
+        boolean hasSpeaker = false;
+        int removableDeviceType = AudioSystem.DEVICE_NONE;
+        AudioDeviceAttributes removableDevice = null;
+        for (AudioDeviceAttributes device : deviceSet) {
+            final int deviceType = device.getInternalType();
+            if (deviceType == AudioSystem.DEVICE_OUT_SPEAKER
+                    || deviceType == AudioSystem.DEVICE_OUT_SPEAKER_SAFE) {
+                hasSpeaker = true;
+                continue;
+            }
+            if (!AudioSystem.DEVICE_OUT_PICK_FOR_VOLUME_SET.contains(deviceType)
+                    || (removableDevice != null && removableDeviceType != deviceType)) {
+                return null;
+            }
+            removableDeviceType = deviceType;
+            removableDevice = device;
+        }
+        return hasSpeaker && removableDevice != null ? removableDevice : null;
+    }
+
 
     /*
      * Must match native apm_extract_one_audio_device() used in getDeviceForVolume()
