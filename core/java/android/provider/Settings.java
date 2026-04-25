@@ -13791,6 +13791,17 @@ public final class Settings {
         public static final String MIC_OFF_TIMEOUT = "mic_off_timeout";
 
         /**
+         * Whether the microphone sensor-use dialog can unblock the microphone while the device is
+         * locked. Default is disabled.
+         *
+         * Type: int (0 to disable, 1 to enable)
+         *
+         * @hide
+         */
+        public static final String MIC_UNBLOCK_DIALOG_WHEN_LOCKED =
+                "mic_unblock_dialog_when_locked";
+
+        /**
          * These entries are considered common between the personal and the managed profile,
          * since the managed profile doesn't get to change them.
          */
