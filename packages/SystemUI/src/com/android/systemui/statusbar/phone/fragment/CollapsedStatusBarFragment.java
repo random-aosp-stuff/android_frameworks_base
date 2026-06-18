@@ -495,6 +495,16 @@ public class CollapsedStatusBarFragment extends Fragment implements CommandQueue
                 false,
                 mVolumeSettingObserver,
                 UserHandle.USER_ALL);
+        mStatusBar.getContext().getContentResolver().registerContentObserver(
+                Settings.System.getUriFor(Settings.System.LOCKSCREEN_SHOW_CARRIER),
+                false,
+                mCarrierTextSettingObserver,
+                UserHandle.USER_ALL);
+        mStatusBar.getContext().getContentResolver().registerContentObserver(
+                Settings.System.getUriFor(Settings.System.LOCKSCREEN_SHOW_CUSTOM_CARRIER_TEXT),
+                false,
+                mCarrierTextSettingObserver,
+                UserHandle.USER_ALL);
     }
 
     @Override
@@ -510,6 +520,7 @@ public class CollapsedStatusBarFragment extends Fragment implements CommandQueue
         }
         mAnimationScheduler.removeCallback(this);
         mSecureSettings.unregisterContentObserverSync(mVolumeSettingObserver);
+        mStatusBar.getContext().getContentResolver().unregisterContentObserver(mCarrierTextSettingObserver);
     }
 
     @Override
@@ -970,17 +981,37 @@ public class CollapsedStatusBarFragment extends Fragment implements CommandQueue
 
     private void initOperatorName() {
         int subId = SubscriptionManager.getDefaultDataSubscriptionId();
-        if (mCarrierConfigTracker.getShowOperatorNameInStatusBarConfig(subId)) {
+        int showCarrier = Settings.System.getIntForUser(mStatusBar.getContext().getContentResolver(),
+                Settings.System.LOCKSCREEN_SHOW_CARRIER, 1, UserHandle.USER_CURRENT);
+        boolean showOperatorNameSetting = (showCarrier == 2 || showCarrier == 3);
+        String customCarrierText = Settings.System.getStringForUser(mStatusBar.getContext().getContentResolver(),
+                Settings.System.LOCKSCREEN_SHOW_CUSTOM_CARRIER_TEXT, UserHandle.USER_CURRENT);
+        boolean hasCustomCarrier = !android.text.TextUtils.isEmpty(customCarrierText);
+
+        if (mCarrierConfigTracker.getShowOperatorNameInStatusBarConfig(subId)
+                || (showOperatorNameSetting && hasCustomCarrier)) {
             View view = mStatusBar.findViewById(R.id.operator_name);
-            mOperatorNameViewController =
-                    mOperatorNameViewControllerFactory.create(
-                            (OperatorNameView) view,
-                            mHomeStatusBarComponent.getDarkIconDispatcher());
-            mOperatorNameViewController.init();
-            // This view should not be visible on lock-screen
-            if (mKeyguardStateController.isShowing()) {
-                if (!StatusBarRootModernization.isEnabled()) {
-                    hideOperatorName(false);
+            if (view == null) {
+                android.view.ViewStub stub = mStatusBar.findViewById(R.id.operator_name_stub);
+                if (stub != null) {
+                    view = stub.inflate().findViewById(R.id.operator_name);
+                }
+            }
+            if (view != null) {
+                mOperatorNameViewController =
+                        mOperatorNameViewControllerFactory.create(
+                                (OperatorNameView) view,
+                                mHomeStatusBarComponent.getDarkIconDispatcher());
+                mOperatorNameViewController.init();
+                // This view should not be visible on lock-screen
+                if (mKeyguardStateController.isShowing()) {
+                    if (!StatusBarRootModernization.isEnabled()) {
+                        hideOperatorName(false);
+                    }
+                } else if (!mLastModifiedVisibility.getShowSystemInfo()) {
+                    if (!StatusBarRootModernization.isEnabled()) {
+                        hideOperatorName(false);
+                    }
                 }
             }
         }
@@ -1033,6 +1064,17 @@ public class CollapsedStatusBarFragment extends Fragment implements CommandQueue
         @Override
         public void onChange(boolean selfChange) {
             updateBlockedIcons();
+        }
+    };
+
+    private final ContentObserver mCarrierTextSettingObserver = new ContentObserver(null) {
+        @Override
+        public void onChange(boolean selfChange) {
+            mMainExecutor.execute(() -> {
+                if (mOperatorNameViewController == null) {
+                    initOperatorName();
+                }
+            });
         }
     };
 
