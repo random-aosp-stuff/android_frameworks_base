@@ -29,6 +29,17 @@ public class DevelopmentSettingsEnabler {
     public static final String DEVELOPMENT_SETTINGS_CHANGED_ACTION =
             "com.android.settingslib.development.DevelopmentSettingsEnabler.SETTINGS_CHANGED";
 
+    /**
+     * Privileged broadcast asking Settings to disable developer options and reset every
+     * developer preference (ADB, stay awake, etc.), matching the dashboard main switch.
+     */
+    public static final String ACTION_DISABLE_DEVELOPMENT_SETTINGS =
+            "com.android.settingslib.development.action.DISABLE_DEVELOPMENT_SETTINGS";
+
+    /** Manifest receiver in Settings that performs the dashboard-equivalent teardown. */
+    public static final String DISABLE_DEVELOPMENT_SETTINGS_RECEIVER =
+            "com.android.settings.development.DisableDevelopmentSettingsReceiver";
+
     private DevelopmentSettingsEnabler() {
     }
 

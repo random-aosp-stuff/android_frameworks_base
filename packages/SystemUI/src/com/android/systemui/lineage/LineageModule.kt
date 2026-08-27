@@ -16,6 +16,7 @@
 
 package com.android.systemui.lineage
 
+import android.os.UserManager
 import com.android.systemui.qs.QsEventLogger
 import com.android.systemui.qs.pipeline.shared.TileSpec
 import com.android.systemui.qs.shared.model.TileCategory
@@ -23,6 +24,7 @@ import com.android.systemui.qs.tileimpl.QSTileImpl
 import com.android.systemui.qs.tiles.AmbientDisplayTile
 import com.android.systemui.qs.tiles.AODTile
 import com.android.systemui.qs.tiles.CaffeineTile
+import com.android.systemui.qs.tiles.DeveloperOptionsTile
 import com.android.systemui.qs.tiles.DnsTile
 import com.android.systemui.qs.tiles.HeadsUpTile
 import com.android.systemui.qs.tiles.PowerShareTile
@@ -33,6 +35,7 @@ import com.android.systemui.qs.tiles.SyncTile
 import com.android.systemui.qs.tiles.UsbTetherTile
 import com.android.systemui.qs.tiles.VpnTile
 import com.android.systemui.qs.tiles.base.shared.model.QSTileConfig
+import com.android.systemui.qs.tiles.base.shared.model.QSTilePolicy
 import com.android.systemui.qs.tiles.base.shared.model.QSTileUIConfig
 import com.android.systemui.res.R
 
@@ -61,6 +64,12 @@ interface LineageModule {
     @IntoMap
     @StringKey(CaffeineTile.TILE_SPEC)
     fun bindCaffeineTile(caffeineTile: CaffeineTile): QSTileImpl<*>
+
+    /** Inject DeveloperOptionsTile into tileMap in QSModule */
+    @Binds
+    @IntoMap
+    @StringKey(DeveloperOptionsTile.TILE_SPEC)
+    fun bindDeveloperOptionsTile(developerOptionsTile: DeveloperOptionsTile): QSTileImpl<*>
 
     /** Inject DnsTile into tileMap in QSModule */
     @Binds
@@ -120,6 +129,7 @@ interface LineageModule {
         const val AMBIENT_DISPLAY_TILE_SPEC = "ambient_display"
         const val AOD_TILE_SPEC = "aod"
         const val CAFFEINE_TILE_SPEC = "caffeine"
+        const val DEVELOPER_OPTIONS_TILE_SPEC = "dev_options"
         const val HEADS_UP_TILE_SPEC = "heads_up"
         const val POWERSHARE_TILE_SPEC = "powershare"
         const val PROFILES_TILE_SPEC = "profiles"
@@ -171,6 +181,23 @@ interface LineageModule {
                     ),
                 instanceId = uiEventLogger.getNewInstanceId(),
                 category = TileCategory.DISPLAY,
+            )
+
+        @Provides
+        @IntoMap
+        @StringKey(DEVELOPER_OPTIONS_TILE_SPEC)
+        fun provideDeveloperOptionsTileConfig(uiEventLogger: QsEventLogger): QSTileConfig =
+            QSTileConfig(
+                tileSpec = TileSpec.create(DEVELOPER_OPTIONS_TILE_SPEC),
+                uiConfig =
+                    QSTileUIConfig.Resource(
+                        iconRes = R.drawable.ic_qs_developer_options,
+                        labelRes = R.string.quick_settings_developer_options_label
+                    ),
+                instanceId = uiEventLogger.getNewInstanceId(),
+                policy =
+                    QSTilePolicy.Restricted(listOf(UserManager.DISALLOW_DEBUGGING_FEATURES)),
+                category = TileCategory.UTILITIES,
             )
 
         @Provides
